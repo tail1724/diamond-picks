@@ -7,10 +7,7 @@ const ODDS_BASE = "https://api.the-odds-api.com/v4";
 const FETCH_TIMEOUT_MS = 10_000;
 
 interface MlbScheduleResponse {
-  dates?: Array<{
-    date: string;
-    games?: MlbScheduledGame[];
-  }>;
+  dates?: Array<{ date: string; games?: MlbScheduledGame[] }>;
 }
 
 interface MlbScheduledGame {
@@ -46,7 +43,7 @@ interface OddsEvent {
   }>;
 }
 
-interface SavantGameFeed {
+export interface SavantGameFeed {
   team_home?: Array<Record<string, unknown>>;
   team_away?: Array<Record<string, unknown>>;
   exit_velocity?: Array<Record<string, unknown>>;
@@ -66,41 +63,41 @@ export interface ProductionSlateResult {
   status: LiveDataStatus;
 }
 
+const TEAM_CODES_BY_ID: Record<number, string> = {
+  108: "LAA", 109: "ARI", 110: "BAL", 111: "BOS", 112: "CHC", 113: "CIN",
+  114: "CLE", 115: "COL", 116: "DET", 117: "HOU", 118: "KCR", 119: "LAD",
+  120: "WSN", 121: "NYM", 133: "ATH", 134: "PIT", 135: "SDP", 136: "SEA",
+  137: "SFG", 138: "STL", 139: "TBR", 140: "TEX", 141: "TOR", 142: "MIN",
+  143: "PHI", 144: "ATL", 145: "CHW", 146: "MIA", 147: "NYY", 158: "MIL",
+};
+
 const TEAM_CODE_OVERRIDES: Record<string, string> = {
-  AZ: "ARI",
-  CWS: "CHW",
-  KC: "KCR",
-  OAK: "ATH",
-  SD: "SDP",
-  SF: "SFG",
-  TB: "TBR",
-  WSH: "WSN",
+  AZ: "ARI", CWS: "CHW", KC: "KCR", OAK: "ATH", SD: "SDP", SF: "SFG", TB: "TBR", WSH: "WSN",
+};
+
+const TEAM_CODES_BY_NAME: Record<string, string> = {
+  losangelesangels: "LAA", arizonadiamondbacks: "ARI", baltimoreorioles: "BAL",
+  bostonredsox: "BOS", chicagocubs: "CHC", cincinnatireds: "CIN", clevelandguardians: "CLE",
+  coloradorockies: "COL", detroittigers: "DET", houstonastros: "HOU", kansascityroyals: "KCR",
+  losangelesdodgers: "LAD", washingtonnationals: "WSN", newyorkmets: "NYM", athletics: "ATH",
+  oaklandathletics: "ATH", pittsburghpirates: "PIT", sandiegopadres: "SDP", seattlemariners: "SEA",
+  sanfranciscogiants: "SFG", stlouiscardinals: "STL", tampabayrays: "TBR", texasrangers: "TEX",
+  torontobluejays: "TOR", minnesotatwins: "MIN", philadelphiaphillies: "PHI", atlantabraves: "ATL",
+  chicagowhitesox: "CHW", miamimarlins: "MIA", newyorkyankees: "NYY", milwaukeebrewers: "MIL",
 };
 
 function normalizeName(value: string): string {
-  return value
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]/g, "");
+  return value.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
 }
 
-function teamCode(team: { abbreviation?: string; name: string }): string {
+function teamCode(team: { id: number; abbreviation?: string; name: string }): string {
+  const byId = TEAM_CODES_BY_ID[team.id];
+  if (byId) return byId;
   const raw = team.abbreviation?.toUpperCase();
   if (raw) return TEAM_CODE_OVERRIDES[raw] ?? raw;
-
-  const byName: Record<string, string> = {
-    arizonadiamondbacks: "ARI",
-    athletics: "ATH",
-    oaklandathletics: "ATH",
-    chicagowhitesox: "CHW",
-    kansascityroyals: "KCR",
-    sandiegopadres: "SDP",
-    sanfranciscogiants: "SFG",
-    tampabayrays: "TBR",
-    washingtonnationals: "WSN",
-  };
-  return byName[normalizeName(team.name)] ?? team.name.slice(0, 3).toUpperCase();
+  const byName = TEAM_CODES_BY_NAME[normalizeName(team.name)];
+  if (!byName) throw new Error(`Unsupported MLB team: ${team.name} (${team.id})`);
+  return byName;
 }
 
 async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
@@ -109,11 +106,7 @@ async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
   try {
     const response = await fetch(url, {
       ...init,
-      headers: {
-        Accept: "application/json",
-        "User-Agent": "TAIL-Sports/1.0",
-        ...init?.headers,
-      },
+      headers: { Accept: "application/json", "User-Agent": "TAIL-Sports/1.0", ...init?.headers },
       signal: controller.signal,
     });
     if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
@@ -125,18 +118,13 @@ async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
 
 function easternDate(date = new Date()): string {
   return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/New_York",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
+    timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit",
   }).format(date);
 }
 
 function easternTime(iso: string): string {
   return new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/New_York",
-    hour: "numeric",
-    minute: "2-digit",
+    timeZone: "America/New_York", hour: "numeric", minute: "2-digit", timeZoneName: "short",
   }).format(new Date(iso));
 }
 
@@ -160,29 +148,20 @@ function gameKey(away: string, home: string): string {
 }
 
 function averageAmerican(values: number[]): number {
-  if (!values.length) return -110;
-  return Math.round(values.reduce((sum, value) => sum + value, 0) / values.length);
+  return values.length ? Math.round(values.reduce((sum, value) => sum + value, 0) / values.length) : -110;
 }
 
 function consensusMarkets(event: OddsEvent | undefined): MarketQuote[] {
   if (!event?.bookmakers?.length) return [];
-
   const buckets = new Map<string, { quote: Omit<MarketQuote, "american">; prices: number[] }>();
   for (const book of event.bookmakers) {
     for (const market of book.markets) {
       for (const outcome of market.outcomes) {
         let quote: Omit<MarketQuote, "american"> | undefined;
         if (market.key === "h2h") {
-          quote = {
-            kind: "moneyline",
-            side: normalizeName(outcome.name) === normalizeName(event.home_team) ? "home" : "away",
-          };
+          quote = { kind: "moneyline", side: normalizeName(outcome.name) === normalizeName(event.home_team) ? "home" : "away" };
         } else if (market.key === "totals" && outcome.point != null) {
-          quote = {
-            kind: "total",
-            side: outcome.name.toLowerCase() === "over" ? "over" : "under",
-            line: outcome.point,
-          };
+          quote = { kind: "total", side: outcome.name.toLowerCase() === "over" ? "over" : "under", line: outcome.point };
         } else if (market.key === "spreads" && outcome.point != null) {
           quote = {
             kind: "runline",
@@ -198,11 +177,7 @@ function consensusMarkets(event: OddsEvent | undefined): MarketQuote[] {
       }
     }
   }
-
-  return [...buckets.values()].map(({ quote, prices }) => ({
-    ...quote,
-    american: averageAmerican(prices),
-  }));
+  return [...buckets.values()].map(({ quote, prices }) => ({ ...quote, american: averageAmerican(prices) }));
 }
 
 function fallbackMarkets(): MarketQuote[] {
@@ -220,16 +195,13 @@ async function fetchSchedule(date: string): Promise<MlbScheduledGame[]> {
     date,
     hydrate: "team,venue,probablePitcher(note,pitchHand)",
   });
-  const response = await fetchJson<MlbScheduleResponse>(
-    `${MLB_STATS_BASE}/v1/schedule/games/?${params.toString()}`,
-  );
+  const response = await fetchJson<MlbScheduleResponse>(`${MLB_STATS_BASE}/v1/schedule/games/?${params.toString()}`);
   return response.dates?.flatMap((entry) => entry.games ?? []) ?? [];
 }
 
 async function fetchOdds(date: string): Promise<OddsEvent[]> {
   const apiKey = process.env.THE_ODDS_API_KEY;
   if (!apiKey) return [];
-
   const from = new Date(`${date}T00:00:00-04:00`).toISOString();
   const to = new Date(`${date}T23:59:59-04:00`).toISOString();
   const params = new URLSearchParams({
@@ -256,17 +228,14 @@ async function enrichStartedGames(games: MlbScheduledGame[]): Promise<{ liveFeed
   const started = games.filter((game) => game.status?.abstractGameState !== "Preview").slice(0, 4);
   let liveFeedGames = 0;
   let savantGames = 0;
-
-  await Promise.all(
-    started.map(async (game) => {
-      const [live, savant] = await Promise.allSettled([
-        fetchGameLiveFeed(game.gamePk),
-        fetchSavantGameFeed(game.gamePk),
-      ]);
-      if (live.status === "fulfilled") liveFeedGames += 1;
-      if (savant.status === "fulfilled") savantGames += 1;
-    }),
-  );
+  await Promise.all(started.map(async (game) => {
+    const [live, savant] = await Promise.allSettled([
+      fetchGameLiveFeed(game.gamePk),
+      fetchSavantGameFeed(game.gamePk),
+    ]);
+    if (live.status === "fulfilled") liveFeedGames += 1;
+    if (savant.status === "fulfilled") savantGames += 1;
+  }));
   return { liveFeedGames, savantGames };
 }
 
@@ -302,9 +271,7 @@ export async function loadProductionSlate(date = easternDate()): Promise<Product
   }
 
   let odds: OddsEvent[] = [];
-  let oddsStatus: LiveDataStatus["odds"] = process.env.THE_ODDS_API_KEY
-    ? "unavailable"
-    : "unconfigured";
+  let oddsStatus: LiveDataStatus["odds"] = process.env.THE_ODDS_API_KEY ? "unavailable" : "unconfigured";
   if (process.env.THE_ODDS_API_KEY) {
     try {
       odds = await fetchOdds(date);
@@ -322,6 +289,7 @@ export async function loadProductionSlate(date = easternDate()): Promise<Product
     const homePitcherId = registerPitcher(raw.teams.home.probablePitcher, `${homeCode}-starter`);
     const event = oddsByGame.get(gameKey(raw.teams.away.team.name, raw.teams.home.team.name));
     const markets = consensusMarkets(event);
+    const hasSportsbookMarkets = markets.length > 0;
 
     return {
       id: String(raw.gamePk),
@@ -331,17 +299,12 @@ export async function loadProductionSlate(date = easternDate()): Promise<Product
       homeCode,
       awayPitcherId,
       homePitcherId,
-      weather: {
-        tempF: 72,
-        windMph: 0,
-        windDir: "weather feed pending",
-        roof: "none",
-        runFactor: 1,
-      },
-      dataQuality: event ? 0.92 : 0.78,
+      weather: { tempF: 72, windMph: 0, windDir: "weather feed pending", roof: "none", runFactor: 1 },
+      dataQuality: hasSportsbookMarkets ? 0.92 : 0.78,
       lineupCertainty: raw.status?.abstractGameState === "Preview" ? 0.72 : 0.98,
-      marketStability: event ? 0.88 : 0.5,
-      markets: markets.length ? markets : fallbackMarkets(),
+      marketStability: hasSportsbookMarkets ? 0.88 : 0.5,
+      marketSource: hasSportsbookMarkets ? "sportsbook" : "fallback",
+      markets: hasSportsbookMarkets ? markets : fallbackMarkets(),
       featuredHitterIds: [],
     };
   });
@@ -349,11 +312,6 @@ export async function loadProductionSlate(date = easternDate()): Promise<Product
   const enrichment = await enrichStartedGames(schedule);
   return {
     slate: { date, games },
-    status: {
-      schedule: "live",
-      odds: oddsStatus,
-      ...enrichment,
-      fetchedAt,
-    },
+    status: { schedule: "live", odds: oddsStatus, ...enrichment, fetchedAt },
   };
 }
