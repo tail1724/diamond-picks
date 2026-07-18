@@ -11,6 +11,10 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { runSlateFn } from "../lib/tail/run";
+import { SlateProvider } from "../lib/tail/context";
+import { Header, TopStrip, shell } from "../components/tail/Header";
+import { Toaster } from "../components/ui/sonner";
 
 function NotFoundComponent() {
   return (
@@ -77,16 +81,32 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { title: "TAIL Sports — Quantitative Baseball Intelligence" },
+      {
+        name: "description",
+        content:
+          "TAIL Sports prices MLB games and props independently, runs 100,000 simulations per game, filters recommendations through the Decision Engine, and publishes correlated parlays with full model lineage.",
+      },
+      { name: "author", content: "TAIL Sports" },
+      {
+        property: "og:title",
+        content: "TAIL Sports — Quantitative Baseball Intelligence",
+      },
+      {
+        property: "og:description",
+        content:
+          "Forecast independently. Simulate deeply. Decide transparently. Learn continuously.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@Lovable" },
     ],
     links: [
+      { rel: "preconnect", href: "https://fonts.googleapis.com" },
+      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
+      {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap",
+      },
       {
         rel: "stylesheet",
         href: appCss,
@@ -94,6 +114,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
     ],
   }),
+  loader: () => runSlateFn(),
   shellComponent: RootShell,
   component: RootComponent,
   notFoundComponent: NotFoundComponent,
@@ -116,11 +137,23 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const slate = Route.useLoaderData();
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
+      <SlateProvider initial={slate}>
+        <TopStrip />
+        <Header />
+        <main className={`${shell} py-7 pb-16`}>
+          {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+          <Outlet />
+        </main>
+        <footer className={`${shell} py-5 text-center text-[10px] text-muted-foreground`}>
+          TAIL Sports™ · Quantitative Baseball Intelligence · Supabase + DigitalOcean App Platform ·
+          modular monolith · open-source-first ML stack
+        </footer>
+        <Toaster position="bottom-right" richColors />
+      </SlateProvider>
     </QueryClientProvider>
   );
 }

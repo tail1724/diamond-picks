@@ -9,8 +9,68 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SimulationRouteImport } from './routes/simulation'
+import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as ScenarioRouteImport } from './routes/scenario'
+import { Route as ReplayRouteImport } from './routes/replay'
+import { Route as PropsRouteImport } from './routes/props'
+import { Route as PerformanceRouteImport } from './routes/performance'
+import { Route as ParlaysRouteImport } from './routes/parlays'
+import { Route as OpsRouteImport } from './routes/ops'
+import { Route as ModelsRouteImport } from './routes/models'
+import { Route as LabRouteImport } from './routes/lab'
 import { Route as IndexRouteImport } from './routes/index'
 
+const SimulationRoute = SimulationRouteImport.update({
+  id: '/simulation',
+  path: '/simulation',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ScenarioRoute = ScenarioRouteImport.update({
+  id: '/scenario',
+  path: '/scenario',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReplayRoute = ReplayRouteImport.update({
+  id: '/replay',
+  path: '/replay',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PropsRoute = PropsRouteImport.update({
+  id: '/props',
+  path: '/props',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PerformanceRoute = PerformanceRouteImport.update({
+  id: '/performance',
+  path: '/performance',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ParlaysRoute = ParlaysRouteImport.update({
+  id: '/parlays',
+  path: '/parlays',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OpsRoute = OpsRouteImport.update({
+  id: '/ops',
+  path: '/ops',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ModelsRoute = ModelsRouteImport.update({
+  id: '/models',
+  path: '/models',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LabRoute = LabRouteImport.update({
+  id: '/lab',
+  path: '/lab',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -19,28 +79,172 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/lab': typeof LabRoute
+  '/models': typeof ModelsRoute
+  '/ops': typeof OpsRoute
+  '/parlays': typeof ParlaysRoute
+  '/performance': typeof PerformanceRoute
+  '/props': typeof PropsRoute
+  '/replay': typeof ReplayRoute
+  '/scenario': typeof ScenarioRoute
+  '/settings': typeof SettingsRoute
+  '/simulation': typeof SimulationRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/lab': typeof LabRoute
+  '/models': typeof ModelsRoute
+  '/ops': typeof OpsRoute
+  '/parlays': typeof ParlaysRoute
+  '/performance': typeof PerformanceRoute
+  '/props': typeof PropsRoute
+  '/replay': typeof ReplayRoute
+  '/scenario': typeof ScenarioRoute
+  '/settings': typeof SettingsRoute
+  '/simulation': typeof SimulationRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/lab': typeof LabRoute
+  '/models': typeof ModelsRoute
+  '/ops': typeof OpsRoute
+  '/parlays': typeof ParlaysRoute
+  '/performance': typeof PerformanceRoute
+  '/props': typeof PropsRoute
+  '/replay': typeof ReplayRoute
+  '/scenario': typeof ScenarioRoute
+  '/settings': typeof SettingsRoute
+  '/simulation': typeof SimulationRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/lab'
+    | '/models'
+    | '/ops'
+    | '/parlays'
+    | '/performance'
+    | '/props'
+    | '/replay'
+    | '/scenario'
+    | '/settings'
+    | '/simulation'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/lab'
+    | '/models'
+    | '/ops'
+    | '/parlays'
+    | '/performance'
+    | '/props'
+    | '/replay'
+    | '/scenario'
+    | '/settings'
+    | '/simulation'
+  id:
+    | '__root__'
+    | '/'
+    | '/lab'
+    | '/models'
+    | '/ops'
+    | '/parlays'
+    | '/performance'
+    | '/props'
+    | '/replay'
+    | '/scenario'
+    | '/settings'
+    | '/simulation'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  LabRoute: typeof LabRoute
+  ModelsRoute: typeof ModelsRoute
+  OpsRoute: typeof OpsRoute
+  ParlaysRoute: typeof ParlaysRoute
+  PerformanceRoute: typeof PerformanceRoute
+  PropsRoute: typeof PropsRoute
+  ReplayRoute: typeof ReplayRoute
+  ScenarioRoute: typeof ScenarioRoute
+  SettingsRoute: typeof SettingsRoute
+  SimulationRoute: typeof SimulationRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/simulation': {
+      id: '/simulation'
+      path: '/simulation'
+      fullPath: '/simulation'
+      preLoaderRoute: typeof SimulationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/scenario': {
+      id: '/scenario'
+      path: '/scenario'
+      fullPath: '/scenario'
+      preLoaderRoute: typeof ScenarioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/replay': {
+      id: '/replay'
+      path: '/replay'
+      fullPath: '/replay'
+      preLoaderRoute: typeof ReplayRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/props': {
+      id: '/props'
+      path: '/props'
+      fullPath: '/props'
+      preLoaderRoute: typeof PropsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/performance': {
+      id: '/performance'
+      path: '/performance'
+      fullPath: '/performance'
+      preLoaderRoute: typeof PerformanceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/parlays': {
+      id: '/parlays'
+      path: '/parlays'
+      fullPath: '/parlays'
+      preLoaderRoute: typeof ParlaysRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ops': {
+      id: '/ops'
+      path: '/ops'
+      fullPath: '/ops'
+      preLoaderRoute: typeof OpsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/models': {
+      id: '/models'
+      path: '/models'
+      fullPath: '/models'
+      preLoaderRoute: typeof ModelsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lab': {
+      id: '/lab'
+      path: '/lab'
+      fullPath: '/lab'
+      preLoaderRoute: typeof LabRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -53,7 +257,27 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  LabRoute: LabRoute,
+  ModelsRoute: ModelsRoute,
+  OpsRoute: OpsRoute,
+  ParlaysRoute: ParlaysRoute,
+  PerformanceRoute: PerformanceRoute,
+  PropsRoute: PropsRoute,
+  ReplayRoute: ReplayRoute,
+  ScenarioRoute: ScenarioRoute,
+  SettingsRoute: SettingsRoute,
+  SimulationRoute: SimulationRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
