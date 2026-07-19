@@ -15,11 +15,10 @@ import {
 } from "./parlay";
 
 /**
- * Production forecast workflow (PRD §5.1): ingest → features → forecast →
- * simulate → decide → parlays → explain → publish. Every run is deterministic
- * from its seed and stamped with full lineage (ARCH-002, reproducibility).
+ * Production forecast workflow: ingest → features → forecast → simulate →
+ * decide → parlays → explain → publish. Every run is deterministic from its
+ * seed and stamped with full lineage.
  */
-
 export interface GameRun {
   game: Game;
   forecast: GameForecast;
@@ -58,7 +57,7 @@ export interface ComputedSlate {
 export const BASE_LINEAGE: RunLineage = {
   productionModel: "v2.0.0",
   featureSet: "v41",
-  datasetSnapshot: "2026.07.18.1",
+  datasetSnapshot: "live-mlb",
   simulationConfig: "sim-v12",
   explanationPrompt: "exp-v7",
 };
@@ -98,10 +97,9 @@ function findQuote(game: Game, kind: string, side?: string): MarketQuote | undef
   return game.markets.find((q) => q.kind === kind && (side ? q.side === side : true));
 }
 
-/** Build the slate's candidate parlays: two hand-set anchors + auto-generated SGPs. */
+/** Build candidate same-game parlays from markets available on each game. */
 function buildParlaySpecs(slate: Slate): ParlaySpec[] {
   const specs: ParlaySpec[] = [];
-
   const featured: Record<string, ParlaySpec | undefined> = {
     "bos-nyy": {
       id: "bronx-power",
@@ -137,7 +135,7 @@ function buildParlaySpecs(slate: Slate): ParlaySpec[] {
     if (legs.length >= 2) {
       specs.push({
         id: `sgp-${game.id}`,
-        title: `${game.awayCode}–${game.homeCode} Suppression SGP`,
+        title: `${game.awayCode}–${game.homeCode} SGP`,
         subtitle: `${game.awayCode} @ ${game.homeCode} · same-game`,
         legs: legs.map((q) => ({ gameId: game.id, legId: legIdForQuote(q) })),
       });
@@ -161,12 +159,15 @@ export function runSlate(opts: RunOptions = {}): ComputedSlate {
 
   const specs = buildParlaySpecs(slate);
   const simParlays = simParlaysForSpecs(specs);
-
   const t0 = Date.now();
+
   const games: GameRun[] = slate.games.map((rawGame) => {
     const forecast = forecastGame(rawGame);
-    // Replace authored prices with synthesized efficient-book prices.
-    const game: Game = { ...rawGame, markets: calibrateMarkets(rawGame, forecast) };
+    // Real sportsbook quotes must remain untouched. Only authored demo/fallback
+    // fixtures are calibrated into synthetic comparison prices.
+    const game: Game = rawGame.marketSource === "sportsbook"
+      ? rawGame
+      : { ...rawGame, markets: calibrateMarkets(rawGame, forecast) };
     const legs = legsForGame(game);
     const sim = simulateGame(game, forecast, legs, simParlays[game.id] ?? [], {
       sims,
@@ -179,7 +180,6 @@ export function runSlate(opts: RunOptions = {}): ComputedSlate {
   });
   const simMs = Date.now() - t0;
 
-  // Pricing context over all games.
   const quoteMap = new Map<string, Map<string, MarketQuote>>();
   const selMap = new Map<string, Map<string, string>>();
   const simMap = new Map<string, SimResult>();
@@ -192,6 +192,7 @@ export function runSlate(opts: RunOptions = {}): ComputedSlate {
     selMap.set(run.game.id, sm);
     simMap.set(run.game.id, run.sim);
   }
+
   const ctx: PricingContext = {
     quote: (g, l) => quoteMap.get(g)?.get(l),
     selection: (g, l) => selMap.get(g)?.get(l) ?? l,
@@ -201,8 +202,6 @@ export function runSlate(opts: RunOptions = {}): ComputedSlate {
 
   const parlays = specs.map((spec) => priceParlay(spec, ctx)).sort((a, b) => b.score - a.score);
   const qualifiedParlays = parlays.filter((p) => p.qualified);
-
-  // Aggregate decisions across every priced market.
   const allDecisions = games.flatMap((g) => g.decisions);
   const recommendations = allDecisions
     .filter((d) => d.outcome === "recommend")
@@ -214,8 +213,7 @@ export function runSlate(opts: RunOptions = {}): ComputedSlate {
 
   const playerMarkets = slate.games.reduce(
     (acc, g) =>
-      acc +
-      g.markets.filter((q) => q.kind.startsWith("pitcher") || q.kind.startsWith("hitter")).length,
+      acc + g.markets.filter((q) => q.kind.startsWith("pitcher") || q.kind.startsWith("hitter")).length,
     0,
   );
   const avgEdge = recommendations.length
@@ -236,7 +234,7 @@ export function runSlate(opts: RunOptions = {}): ComputedSlate {
     date: slate.date,
     runNumber,
     seed,
-    lineage: BASE_LINEAGE,
+    lineage: { ...BASE_LINEAGE, datasetSnapshot: `${slate.date}.live` },
     games,
     recommendations,
     monitored,
@@ -257,7 +255,6 @@ export function runSlate(opts: RunOptions = {}): ComputedSlate {
   };
 }
 
-// Memoize the base production run so navigation reuses one computation.
 let baseRunCache: ComputedSlate | undefined;
 export function getBaseRun(): ComputedSlate {
   if (!baseRunCache) baseRunCache = runSlate();

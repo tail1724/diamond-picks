@@ -1,15 +1,15 @@
 import { createServerFn } from "@tanstack/react-start";
 import { runSlate, type ComputedSlate } from "../engines/pipeline";
 import { hashSeed } from "../engines/rng";
+import { loadProductionSlate } from "../data/live-mlb";
 import { supabase } from "./supabase";
 
 /**
- * Persistence + versioning (PRD §5.2, FR-002). Each manual regeneration runs
- * the pipeline and writes a new immutable forecast-run version — plus its
- * recommendations, parlays, and an audit event — then returns the slate.
- * Writes are best-effort: a persistence failure never blocks the forecast.
+ * Persistence + versioning (PRD §5.2, FR-002). Each manual regeneration reloads
+ * the current production MLB slate, runs the pipeline, and writes a new immutable
+ * forecast-run version. Persistence remains best-effort so a database outage does
+ * not prevent a fresh forecast from being returned.
  */
-
 async function persist(slate: ComputedSlate): Promise<void> {
   const { data, error } = await supabase
     .from("forecast_runs")
@@ -75,20 +75,24 @@ async function persist(slate: ComputedSlate): Promise<void> {
     supabase.from("audit_events").insert({
       actor: "admin",
       action: "forecast_run.completed",
-      detail: `Run #${slate.runNumber} published as immutable version (${slate.stats.recommendations} recommendations, ${slate.stats.qualifiedParlays} parlays).`,
+      detail: `Run #${slate.runNumber} published from live MLB data (${slate.stats.recommendations} recommendations, ${slate.stats.qualifiedParlays} parlays).`,
     }),
   ]);
 }
 
-/** Run the pipeline for a new run number and persist it as a new version. */
 export const regenerateRunFn = createServerFn({ method: "POST" })
-  .validator((d: { runNumber: number }) => d)
+  .validator((d: { runNumber: number; date?: string }) => d)
   .handler(async ({ data }): Promise<ComputedSlate> => {
-    const slate = runSlate({ runNumber: data.runNumber, seed: hashSeed("run", data.runNumber) });
+    const { slate: sourceSlate } = await loadProductionSlate(data.date);
+    const slate = runSlate({
+      slate: sourceSlate,
+      runNumber: data.runNumber,
+      seed: hashSeed("run", data.runNumber, sourceSlate.date),
+    });
     try {
       await persist(slate);
     } catch {
-      // Persistence is best-effort; the forecast still returns.
+      // Persistence is best-effort; the live forecast still returns.
     }
     return slate;
   });
@@ -105,7 +109,6 @@ export interface RunHistoryRow {
   created_at: string;
 }
 
-/** Read the immutable run history (most recent first). */
 export const getRunHistoryFn = createServerFn({ method: "GET" }).handler(
   async (): Promise<RunHistoryRow[]> => {
     const { data, error } = await supabase
