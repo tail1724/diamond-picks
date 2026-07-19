@@ -8,10 +8,10 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/games")({
   head: () => ({
     meta: [
-      { title: "All Games — TAIL Sports" },
+      { title: "Every MLB Game — TAIL Sports" },
       {
         name: "description",
-        content: "Every MLB game on today's slate with model prediction, edge, and decision.",
+        content: "A clear look at every MLB game today, including our pick, confidence, and current price.",
       },
     ],
   }),
@@ -26,8 +26,6 @@ function AllGames() {
 
   const games = useMemo(() => {
     const outcomeRank: Record<string, number> = { recommend: 0, monitor: 1, reject: 2 };
-    // Rank recommended picks above monitors, then by gates passed, then score.
-    // Start time is a final tie-breaker so same-tier games stay chronological.
     const sorted = [...slate.games].sort(
       (a, b) =>
         (outcomeRank[a.headline.outcome] ?? 3) - (outcomeRank[b.headline.outcome] ?? 3) ||
@@ -49,9 +47,9 @@ function AllGames() {
   );
 
   const chips: { key: Filter; label: string }[] = [
-    { key: "all", label: `All (${counts.all})` },
-    { key: "recommend", label: `Recommended (${counts.recommend})` },
-    { key: "monitor", label: `Monitor (${counts.monitor})` },
+    { key: "all", label: `Every game (${counts.all})` },
+    { key: "recommend", label: `Play it (${counts.recommend})` },
+    { key: "monitor", label: `Worth watching (${counts.monitor})` },
   ];
 
   return (
@@ -61,10 +59,10 @@ function AllGames() {
           {slateDateLabel(slate.date)}
         </div>
         <h1 className="mt-1 font-serif text-[clamp(30px,4vw,44px)] leading-tight text-navy">
-          All Games
+          Every Game Today
         </h1>
         <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-          Every game on today's slate with a model prediction, sorted by start time.
+          Start with the strongest plays, or scan the full schedule and see where each matchup stands.
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
           {chips.map((c) => (
@@ -86,7 +84,7 @@ function AllGames() {
 
       {games.length === 0 ? (
         <div className="rounded-[16px] border border-dashed border-line bg-card p-8 text-center text-sm text-muted-foreground">
-          No games match this filter.
+          No games fit this view right now.
         </div>
       ) : (
         <div className="grid gap-3">
