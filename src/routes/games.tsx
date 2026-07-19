@@ -25,8 +25,15 @@ function AllGames() {
   const [filter, setFilter] = useState<Filter>("all");
 
   const games = useMemo(() => {
-    const sorted = [...slate.games].sort((a, b) =>
-      a.game.startTimeET.localeCompare(b.game.startTimeET),
+    const outcomeRank: Record<string, number> = { recommend: 0, monitor: 1, reject: 2 };
+    // Rank recommended picks above monitors, then by gates passed, then score.
+    // Start time is a final tie-breaker so same-tier games stay chronological.
+    const sorted = [...slate.games].sort(
+      (a, b) =>
+        (outcomeRank[a.headline.outcome] ?? 3) - (outcomeRank[b.headline.outcome] ?? 3) ||
+        b.headline.gatesPassed - a.headline.gatesPassed ||
+        b.headline.score - a.headline.score ||
+        a.game.startTimeET.localeCompare(b.game.startTimeET),
     );
     if (filter === "all") return sorted;
     return sorted.filter((g) => g.headline.outcome === filter);
