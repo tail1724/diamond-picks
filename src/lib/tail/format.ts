@@ -18,19 +18,19 @@ export function slateDateLabel(iso: string): string {
 }
 
 export const navItems = [
-  { to: "/", label: "Top Picks" },
-  { to: "/games", label: "All Games" },
+  { to: "/", label: "Best Picks" },
+  { to: "/games", label: "Every Game" },
 ] as const;
 
 export const advancedNavItems = [
-  { to: "/parlays", label: "TAIL Sports Parlays" },
-  { to: "/props", label: "Player Props" },
-  { to: "/performance", label: "Performance" },
-  { to: "/lab", label: "TAIL Sports Lab" },
-  { to: "/scenario", label: "Scenario Studio" },
-  { to: "/simulation", label: "Simulation Explorer" },
-  { to: "/replay", label: "Replay Lab" },
-  { to: "/models", label: "Model Registry" },
-  { to: "/ops", label: "TAIL Sports Ops" },
+  { to: "/parlays", label: "Parlays" },
+  { to: "/props", label: "Player Picks" },
+  { to: "/performance", label: "How We’re Doing" },
+  { to: "/lab", label: "Pick Lab" },
+  { to: "/scenario", label: "What-If Tool" },
+  { to: "/simulation", label: "Game Simulations" },
+  { to: "/replay", label: "Past Slates" },
+  { to: "/models", label: "How It Works" },
+  { to: "/ops", label: "System Status" },
   { to: "/settings", label: "Settings" },
 ] as const;
