@@ -18,7 +18,11 @@ export function slateDateLabel(iso: string): string {
 }
 
 export const navItems = [
-  { to: "/", label: "Dashboard" },
+  { to: "/", label: "Top Picks" },
+  { to: "/games", label: "All Games" },
+] as const;
+
+export const advancedNavItems = [
   { to: "/parlays", label: "TAIL Sports Parlays" },
   { to: "/props", label: "Player Props" },
   { to: "/performance", label: "Performance" },
