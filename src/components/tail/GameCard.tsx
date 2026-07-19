@@ -2,7 +2,8 @@ import { cn } from "@/lib/utils";
 import { team } from "@/lib/domain/teams";
 import { pitcher } from "@/lib/domain/slate";
 import type { GameRun } from "@/lib/engines/pipeline";
-import { formatAmerican, pct, signedPct } from "@/lib/tail/format";
+import { formatAmerican, pct, signedPct, slateDateLabel } from "@/lib/tail/format";
+import { useSlate } from "@/lib/tail/context";
 import { Explanation, Grade } from "./ui";
 
 function TeamSide({
@@ -76,6 +77,7 @@ function Cell({
 
 export function GameCard({ run }: { run: GameRun }) {
   const { game, headline, forecast, explanation } = run;
+  const { slate } = useSlate();
   const recommend = headline.outcome === "recommend";
   const winnerCode = run.sim.homeWinProb >= 0.5 ? game.homeCode : game.awayCode;
 
@@ -96,7 +98,7 @@ export function GameCard({ run }: { run: GameRun }) {
       />
       <div className="flex items-center justify-between gap-3">
         <div className="text-[10px] font-extrabold uppercase tracking-[0.08em] text-muted-foreground">
-          {game.startTimeET} · {game.venue} · Data quality {pct(game.dataQuality, 0)}
+          {slateDateLabel(slate.date)} · {game.startTimeET} ET · {game.venue} · Data quality {pct(game.dataQuality, 0)}
         </div>
         <Grade value={headline.score} hot={recommend} />
       </div>
