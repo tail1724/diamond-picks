@@ -1,87 +1,82 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { Bookmark, BookmarkCheck } from "lucide-react";
 import { useSlate } from "@/lib/tail/context";
-import { formatAmerican, pct, signedPct } from "@/lib/tail/format";
-import type { MarketDecision, Outcome } from "@/lib/engines/decision";
-import { Panel, PanelHead, SectionHead, Tag, type Tone } from "@/components/tail/ui";
+import { formatAmerican, pct, pickStrength, payoutForStake } from "@/lib/tail/format";
+import type { MarketDecision } from "@/lib/engines/decision";
+import { Panel, PanelHead, SectionHead, Tag } from "@/components/tail/ui";
 
 export const Route = createFileRoute("/props")({ component: PlayerProps });
 
-const outcomeTone: Record<Outcome, Tone> = { recommend: "green", monitor: "amber", reject: "red" };
+function PropList({ decisions }: { decisions: MarketDecision[] }) {
+  const { savePick, removePick, isSaved, slate } = useSlate();
+  if (!decisions.length) {
+    return (
+      <div className="p-7 text-center">
+        <h3 className="font-serif text-xl text-navy">No verified player prices yet</h3>
+        <p className="mx-auto mt-2 max-w-lg text-sm text-muted-foreground">
+          Today’s live feed currently includes game lines only. Player picks will appear when the sportsbook feed supplies a price we can verify.
+        </p>
+      </div>
+    );
+  }
 
-function PropTable({ decisions }: { decisions: MarketDecision[] }) {
   return (
-    <div className="overflow-x-auto p-1">
-      <table className="w-full border-collapse">
-        <thead>
-          <tr>
-            {["Selection", "Model", "Fair", "Market", "Edge", "Score", "Decision"].map((h) => (
-              <th
-                key={h}
-                className="border-b border-line p-2.5 text-left text-[10px] font-black uppercase tracking-wide text-muted-foreground"
-              >
-                {h}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {decisions.map((d) => (
-            <tr key={`${d.gameId}-${d.legId}`}>
-              <td className="border-b border-line p-2.5 text-[11px] font-black text-navy">
-                {d.selection}
-              </td>
-              <td className="border-b border-line p-2.5 text-[11px]">{pct(d.modelProb)}</td>
-              <td className="border-b border-line p-2.5 text-[11px]">
-                {formatAmerican(d.fairAmerican)}
-              </td>
-              <td className="border-b border-line p-2.5 text-[11px]">
-                {formatAmerican(d.marketAmerican)}
-              </td>
-              <td
-                className={`border-b border-line p-2.5 text-[11px] font-black ${d.edge >= 0 ? "text-edge" : "text-muted-foreground"}`}
-              >
-                {signedPct(d.edge)}
-              </td>
-              <td className="border-b border-line p-2.5 text-[11px] font-black text-navy">
-                {d.score}
-              </td>
-              <td className="border-b border-line p-2.5 text-[11px]">
-                <Tag tone={outcomeTone[d.outcome]}>{d.outcome}</Tag>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="grid gap-2 p-3.5">
+      {decisions.map((decision) => {
+        const run = slate.games.find((game) => game.game.id === decision.gameId);
+        const saved = isSaved(decision.gameId, decision.legId);
+        const playable = decision.outcome === "recommend" && run?.game.marketSource === "sportsbook";
+        return (
+          <article key={`${decision.gameId}-${decision.legId}`} className="grid gap-3 rounded-[14px] border border-line bg-card p-4 sm:grid-cols-[1fr_auto] sm:items-center">
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="font-black text-navy">{decision.selection}</h3>
+                <Tag tone={playable ? "green" : decision.outcome === "monitor" ? "amber" : "navy"}>
+                  {playable ? pickStrength(decision.score) : decision.outcome === "monitor" ? "Watch" : "Pass"}
+                </Tag>
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {pct(decision.modelProb, 0)} confidence · {formatAmerican(decision.marketAmerican)} · $10 wins ${payoutForStake(10, decision.marketAmerican).toFixed(2)}
+              </p>
+            </div>
+            <button
+              disabled={!playable}
+              onClick={() => saved ? removePick(`${decision.gameId}:${decision.legId}`) : savePick(decision)}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-3.5 py-2.5 text-sm font-extrabold text-navy disabled:opacity-45"
+            >
+              {saved ? <BookmarkCheck className="h-4 w-4" /> : <Bookmark className="h-4 w-4" />}
+              {saved ? "Saved" : playable ? "Add to My Card" : "Not playable"}
+            </button>
+          </article>
+        );
+      })}
     </div>
   );
 }
 
 function PlayerProps() {
   const { slate } = useSlate();
-  const all = slate.games.flatMap((g) => g.decisions);
+  const all = slate.games.flatMap((game) => game.decisions);
   const pitcher = all
-    .filter((d) => d.kind === "pitcher_k" || d.kind === "pitcher_er")
+    .filter((decision) => decision.kind === "pitcher_k" || decision.kind === "pitcher_er")
     .sort((a, b) => b.score - a.score);
-  const hitter = all.filter((d) => d.kind === "hitter_tb").sort((a, b) => b.score - a.score);
+  const hitter = all.filter((decision) => decision.kind === "hitter_tb").sort((a, b) => b.score - a.score);
 
   return (
     <>
       <SectionHead
-        eyebrow="Pitcher and hitter markets"
-        title="Player Props"
-        copy="Strikeout, earned-run, and total-base markets priced from the same simulation the game markets use — each with model probability, fair price, edge, and decision state."
+        eyebrow="Player picks"
+        title="Pitchers and hitters"
+        copy="Only player markets with an available price appear here. No made-up lines and no forced recommendations."
       />
       <div className="grid gap-[18px]">
         <Panel>
-          <PanelHead
-            title="Pitcher Props"
-            subtitle={`${pitcher.length} markets · strikeouts and earned runs`}
-          />
-          <PropTable decisions={pitcher} />
+          <PanelHead title="Pitcher picks" subtitle={pitcher.length ? `${pitcher.length} prices checked` : "Waiting on sportsbook prop prices"} />
+          <PropList decisions={pitcher} />
         </Panel>
         <Panel>
-          <PanelHead title="Hitter Props" subtitle={`${hitter.length} markets · total bases`} />
-          <PropTable decisions={hitter} />
+          <PanelHead title="Hitter picks" subtitle={hitter.length ? `${hitter.length} prices checked` : "Waiting on sportsbook prop prices"} />
+          <PropList decisions={hitter} />
         </Panel>
       </div>
     </>
