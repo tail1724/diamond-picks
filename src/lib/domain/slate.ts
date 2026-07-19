@@ -666,8 +666,20 @@ export const SLATE: Slate = {
 
 export function pitcher(id: string): Pitcher {
   const p = PITCHERS[id];
-  if (!p) throw new Error(`Unknown pitcher: ${id}`);
-  return p;
+  if (p) return p;
+  // Live slate can arrive on the client with pitcher IDs (e.g. "mlb-686218")
+  // that were only registered on the server. Fall back to a neutral profile
+  // so rendering doesn't blank the page.
+  const fallback: Pitcher = {
+    id,
+    name: "TBD",
+    hand: "R",
+    k9: 8.7,
+    suppression: 0,
+    expectedIP: 5.5,
+  };
+  PITCHERS[id] = fallback;
+  return fallback;
 }
 export function hitter(id: string): Hitter {
   const h = HITTERS[id];
