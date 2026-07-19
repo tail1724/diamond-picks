@@ -9,74 +9,65 @@ export const Route = createFileRoute("/games")({
   head: () => ({
     meta: [
       { title: "Every MLB Game — TAIL Sports" },
-      {
-        name: "description",
-        content: "A clear look at every MLB game today, including our pick, confidence, and current price.",
-      },
+      { name: "description", content: "Every MLB game today, organized by what is playable, worth watching, or waiting on more information." },
     ],
   }),
   component: AllGames,
 });
 
-type Filter = "all" | "recommend" | "monitor";
+type Filter = "all" | "play" | "watch" | "waiting";
 
 function AllGames() {
   const { slate } = useSlate();
   const [filter, setFilter] = useState<Filter>("all");
 
+  const stateFor = (run: (typeof slate.games)[number]): Exclude<Filter, "all"> => {
+    if (run.game.marketSource !== "sportsbook" || run.game.lineupCertainty < 0.75) return "waiting";
+    if (run.headline.outcome === "recommend") return "play";
+    return "watch";
+  };
+
   const games = useMemo(() => {
-    const outcomeRank: Record<string, number> = { recommend: 0, monitor: 1, reject: 2 };
+    const rank: Record<Exclude<Filter, "all">, number> = { play: 0, watch: 1, waiting: 2 };
     const sorted = [...slate.games].sort(
-      (a, b) =>
-        (outcomeRank[a.headline.outcome] ?? 3) - (outcomeRank[b.headline.outcome] ?? 3) ||
-        b.headline.gatesPassed - a.headline.gatesPassed ||
-        b.headline.score - a.headline.score ||
-        a.game.startTimeET.localeCompare(b.game.startTimeET),
+      (a, b) => rank[stateFor(a)] - rank[stateFor(b)] || b.headline.score - a.headline.score,
     );
-    if (filter === "all") return sorted;
-    return sorted.filter((g) => g.headline.outcome === filter);
+    return filter === "all" ? sorted : sorted.filter((run) => stateFor(run) === filter);
   }, [slate, filter]);
 
-  const counts = useMemo(
-    () => ({
-      all: slate.games.length,
-      recommend: slate.games.filter((g) => g.headline.outcome === "recommend").length,
-      monitor: slate.games.filter((g) => g.headline.outcome === "monitor").length,
-    }),
-    [slate],
-  );
+  const counts = {
+    all: slate.games.length,
+    play: slate.games.filter((run) => stateFor(run) === "play").length,
+    watch: slate.games.filter((run) => stateFor(run) === "watch").length,
+    waiting: slate.games.filter((run) => stateFor(run) === "waiting").length,
+  };
 
-  const chips: { key: Filter; label: string }[] = [
+  const chips: Array<{ key: Filter; label: string }> = [
     { key: "all", label: `Every game (${counts.all})` },
-    { key: "recommend", label: `Play it (${counts.recommend})` },
-    { key: "monitor", label: `Worth watching (${counts.monitor})` },
+    { key: "play", label: `Playable (${counts.play})` },
+    { key: "watch", label: `Worth watching (${counts.watch})` },
+    { key: "waiting", label: `Waiting on info (${counts.waiting})` },
   ];
 
   return (
     <>
       <section className="mb-5">
-        <div className="text-[11px] font-black uppercase tracking-[0.18em] text-brand-red">
-          {slateDateLabel(slate.date)}
-        </div>
-        <h1 className="mt-1 font-serif text-[clamp(30px,4vw,44px)] leading-tight text-navy">
-          Every Game Today
-        </h1>
+        <div className="text-[11px] font-black uppercase tracking-[0.18em] text-brand-red">{slateDateLabel(slate.date)}</div>
+        <h1 className="mt-1 font-serif text-[clamp(30px,4vw,44px)] leading-tight text-navy">Every Game Today</h1>
         <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-          Start with the strongest plays, or scan the full schedule and see where each matchup stands.
+          Start with verified plays, then see what is close and which games still need a price or lineup update.
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
-          {chips.map((c) => (
+          {chips.map((chip) => (
             <button
-              key={c.key}
-              onClick={() => setFilter(c.key)}
+              key={chip.key}
+              onClick={() => setFilter(chip.key)}
               className={cn(
                 "rounded-full border border-line px-3 py-1.5 text-xs font-extrabold transition",
-                filter === c.key
-                  ? "bg-navy text-white"
-                  : "bg-card text-navy hover:bg-soft",
+                filter === chip.key ? "bg-navy text-white" : "bg-card text-navy hover:bg-soft",
               )}
             >
-              {c.label}
+              {chip.label}
             </button>
           ))}
         </div>
@@ -84,14 +75,10 @@ function AllGames() {
 
       {games.length === 0 ? (
         <div className="rounded-[16px] border border-dashed border-line bg-card p-8 text-center text-sm text-muted-foreground">
-          No games fit this view right now.
+          Nothing fits this view right now. Try another filter or refresh the board.
         </div>
       ) : (
-        <div className="grid gap-3">
-          {games.map((run) => (
-            <GameCard key={run.game.id} run={run} />
-          ))}
-        </div>
+        <div className="grid gap-3">{games.map((run) => <GameCard key={run.game.id} run={run} />)}</div>
       )}
     </>
   );
