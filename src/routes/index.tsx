@@ -25,7 +25,11 @@ function TopPicks() {
     () =>
       slate.games
         .filter((g) => g.headline.outcome === "recommend")
-        .sort((a, b) => b.headline.score - a.headline.score)
+        .sort(
+          (a, b) =>
+            b.headline.gatesPassed - a.headline.gatesPassed ||
+            b.headline.score - a.headline.score,
+        )
         .slice(0, 5),
     [slate],
   );
