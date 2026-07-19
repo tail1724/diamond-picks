@@ -15,7 +15,7 @@ export const shell = "mx-auto w-[min(1520px,calc(100%-28px))]";
 export function TopStrip() {
   return (
     <div className="bg-brand-red px-4 py-2 text-center text-[11px] font-black uppercase tracking-[0.15em] text-white">
-      Independent probability first · market comparison second · every prediction versioned
+      We find the games where the matchup and the price line up
     </div>
   );
 }
@@ -32,7 +32,7 @@ export function Header() {
           <span>
             <strong className="block font-serif text-[22px] leading-none">TAIL Sports</strong>
             <span className="mt-1 block text-[9px] font-extrabold uppercase tracking-[0.15em] text-white/60">
-              Quantitative Baseball Intelligence
+              Smarter MLB picks, explained simply
             </span>
           </span>
         </Link>
@@ -53,7 +53,7 @@ export function Header() {
           ))}
           <DropdownMenu>
             <DropdownMenuTrigger className="inline-flex items-center gap-1 whitespace-nowrap rounded-[10px] px-2.5 py-2.5 text-xs font-extrabold text-white/70 transition hover:bg-white/10 hover:text-white">
-              Advanced <ChevronDown className="h-3.5 w-3.5" />
+              More tools <ChevronDown className="h-3.5 w-3.5" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-56">
               {advancedNavItems.map((item) => (
@@ -68,13 +68,13 @@ export function Header() {
         <div className="ml-auto flex min-w-max items-center gap-2.5">
           <span className="hidden items-center gap-2 text-[11px] font-extrabold text-[#cdebdc] sm:inline-flex">
             <span className="h-2 w-2 rounded-full bg-[#37c979] shadow-[0_0_0_5px_rgba(55,201,121,0.13)]" />
-            All systems operational
+            Live data is up
           </span>
           <Link
             to="/models"
             className="hidden rounded-xl border border-white/15 bg-white/10 px-3.5 py-2.5 text-sm font-extrabold text-white transition hover:brightness-110 sm:inline-flex"
           >
-            Model {slate.lineage.productionModel}
+            How our picks work
           </Link>
           <button
             onClick={regenerate}
@@ -82,7 +82,7 @@ export function Header() {
             className="inline-flex items-center gap-2 rounded-xl bg-brand-red px-3.5 py-2.5 text-sm font-extrabold text-white shadow-[0_8px_20px_rgba(201,31,55,0.24)] transition hover:-translate-y-px hover:brightness-105 disabled:opacity-70"
           >
             <RefreshCw className={cn("h-4 w-4", regenerating && "animate-spin")} />
-            {regenerating ? "Running…" : "Regenerate"}
+            {regenerating ? "Updating…" : "Refresh picks"}
           </button>
         </div>
       </div>
