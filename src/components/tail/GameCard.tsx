@@ -84,12 +84,12 @@ export function GameCard({ run }: { run: GameRun }) {
   const projection =
     headline.kind === "moneyline"
       ? {
-          label: "Model Winner",
+          label: "Our pick to win",
           value: `${winnerCode} ${pct(Math.max(run.sim.homeWinProb, run.sim.awayWinProb))}`,
         }
       : headline.kind === "total"
-        ? { label: "Model Total", value: forecast.fairTotal.toFixed(1) }
-        : { label: "Model Prob", value: pct(headline.modelProb) };
+        ? { label: "Expected runs", value: forecast.fairTotal.toFixed(1) }
+        : { label: "Chance it hits", value: pct(headline.modelProb) };
 
   return (
     <article className="relative overflow-hidden rounded-[16px] border border-line bg-paper p-4">
@@ -98,7 +98,7 @@ export function GameCard({ run }: { run: GameRun }) {
       />
       <div className="flex items-center justify-between gap-3">
         <div className="text-[10px] font-extrabold uppercase tracking-[0.08em] text-muted-foreground">
-          {slateDateLabel(slate.date)} · {game.startTimeET} ET · {game.venue} · Data quality {pct(game.dataQuality, 0)}
+          {slateDateLabel(slate.date)} · {game.startTimeET} ET · {game.venue} · Info confidence {pct(game.dataQuality, 0)}
         </div>
         <Grade value={headline.score} hot={recommend} />
       </div>
@@ -112,13 +112,13 @@ export function GameCard({ run }: { run: GameRun }) {
       <div className="mt-3 flex items-center justify-between gap-3 rounded-[11px] border border-dashed border-line bg-card px-3 py-2">
         <div>
           <div className="text-[9px] font-black uppercase tracking-[0.07em] text-muted-foreground">
-            Selection
+            The play
           </div>
           <div className="text-sm font-black text-navy">{headline.selection}</div>
         </div>
         <div className="text-right">
           <div className="text-[9px] font-black uppercase tracking-[0.07em] text-muted-foreground">
-            Probability
+            Our confidence
           </div>
           <div className="text-sm font-black text-navy">{pct(headline.modelProb)}</div>
         </div>
@@ -126,16 +126,16 @@ export function GameCard({ run }: { run: GameRun }) {
 
       <div className="mt-3 grid grid-cols-2 gap-2 border-t border-dashed border-line pt-3 sm:grid-cols-5">
         <Cell label={projection.label}>{projection.value}</Cell>
-        <Cell label="Fair Price">{formatAmerican(headline.fairAmerican)}</Cell>
-        <Cell label="Market">{formatAmerican(headline.marketAmerican)}</Cell>
-        <Cell label="Edge" edge>
+        <Cell label="Our price">{formatAmerican(headline.fairAmerican)}</Cell>
+        <Cell label="Sportsbook price">{formatAmerican(headline.marketAmerican)}</Cell>
+        <Cell label="Value" edge>
           {signedPct(headline.edge)}
         </Cell>
-        <Cell label="Decision">{recommend ? "Recommend" : "Monitor"}</Cell>
+        <Cell label="Call">{recommend ? "Play it" : "Keep an eye on it"}</Cell>
       </div>
 
       <Explanation className="mt-3">
-        <strong className="text-navy">Why it qualifies:</strong> {explanation.whyItQualifies}
+        <strong className="text-navy">Why we like it:</strong> {explanation.whyItQualifies}
       </Explanation>
     </article>
   );
