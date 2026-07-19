@@ -201,10 +201,60 @@ function etTime(iso: string): string {
 }
 
 function weatherFor(homeCode: string): WeatherSnapshot {
-  // Real weather needs a separate provider; use the home park run factor with a
-  // neutral wind so the run environment still reflects the venue.
+  // Fallback when the live game feed is unavailable: park run factor, neutral wind.
   const park = team(homeCode).parkFactor;
   return { tempF: 72, windMph: 0, windDir: "n/a", roof: "none", runFactor: park };
+}
+
+interface GameContext {
+  weather?: WeatherSnapshot;
+  lineupCertainty?: number;
+}
+
+/** Parse the game feed's weather block into a run-environment snapshot. */
+function parseWeather(homeCode: string, w: any): WeatherSnapshot {
+  const park = team(homeCode).parkFactor;
+  const tempF = num(w?.temp, 72);
+  const condition = String(w?.condition ?? "");
+  const windStr = String(w?.wind ?? "");
+  const indoor = /dome|roof closed/i.test(condition) || /roof closed/i.test(windStr);
+  const mph = num((windStr.match(/(\d+)\s*mph/i) ?? [])[1], 0);
+  const dir = windStr.replace(/^[\d\s]*mph[,\s]*/i, "").trim() || "calm";
+  // Out-to-field wind adds runs; in-from-field suppresses; cross winds ~neutral.
+  let windAdj = 0;
+  if (!indoor && mph > 0) {
+    if (/out to/i.test(dir)) windAdj = mph * 0.006;
+    else if (/in from/i.test(dir)) windAdj = -mph * 0.006;
+  }
+  const tempAdj = (tempF - 70) * 0.0018;
+  const runFactor = clamp(park + windAdj + tempAdj, 0.85, 1.28);
+  return {
+    tempF,
+    windMph: indoor ? 0 : mph,
+    windDir: indoor ? "roof closed" : dir,
+    roof: indoor ? "closed" : "none",
+    runFactor,
+  };
+}
+
+/** Fetch real weather + lineup status for one game from the live feed. */
+async function fetchGameContext(gamePk: number, homeCode: string): Promise<GameContext> {
+  try {
+    const feed: any = await fetchJson(
+      `https://statsapi.mlb.com/api/v1.1/game/${gamePk}/feed/live`,
+      6000,
+    );
+    const weather = feed?.gameData?.weather?.temp
+      ? parseWeather(homeCode, feed.gameData.weather)
+      : undefined;
+    const box = feed?.liveData?.boxscore?.teams;
+    const away = box?.away?.battingOrder?.length ?? 0;
+    const home = box?.home?.battingOrder?.length ?? 0;
+    const lineupCertainty = away >= 9 && home >= 9 ? 0.96 : away >= 9 || home >= 9 ? 0.9 : 0.85;
+    return { weather, lineupCertainty };
+  } catch {
+    return {};
+  }
 }
 
 const ml = (side: Side, american: number): MarketQuote => ({ kind: "moneyline", side, american });
@@ -291,8 +341,18 @@ export async function buildLiveSlate(date: string): Promise<Slate> {
     if (TEAMS[code]) TEAMS[code].offense = off;
   }
 
+  // Real weather + lineup status per game from the live feed (parallel, best-effort).
+  const contexts = new Map<number, GameContext>();
+  const results = await Promise.allSettled(
+    rawGames.map((rg) => fetchGameContext(rg.gamePk, rg.home.code)),
+  );
+  results.forEach((r, i) => {
+    if (r.status === "fulfilled") contexts.set(rawGames[i].gamePk, r.value);
+  });
+
   // Register real pitchers and assemble games.
   const games: Game[] = rawGames.map((rg) => {
+    const ctx = contexts.get(rg.gamePk) ?? {};
     const awayP = pitcherFromStat(
       rg.away.pitcherId!,
       rg.away.pitcherName ?? "TBD",
@@ -323,9 +383,9 @@ export async function buildLiveSlate(date: string): Promise<Slate> {
       homePitcherName: homeP.name,
       awayPitcherHand: awayP.hand,
       homePitcherHand: homeP.hand,
-      weather: weatherFor(rg.home.code),
-      dataQuality: 0.94,
-      lineupCertainty: 0.85,
+      weather: ctx.weather ?? weatherFor(rg.home.code),
+      dataQuality: ctx.weather ? 0.96 : 0.94,
+      lineupCertainty: ctx.lineupCertainty ?? 0.85,
       marketStability: 0.75,
       featuredHitterIds,
       markets: [],
