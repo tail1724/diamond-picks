@@ -103,8 +103,22 @@ function Dashboard() {
         <div className="pointer-events-none absolute -right-32 -top-52 h-[470px] w-[470px] rounded-full border-[36px] border-white/5" />
         <div className="relative z-10 grid items-end gap-8 lg:grid-cols-[1.4fr_0.75fr]">
           <div>
-            <div className="text-[11px] font-black uppercase tracking-[0.18em] text-[#f1c56b]">
-              {slateDateLabel(slate.date)} · Production Run #{slate.runNumber}
+            <div className="flex flex-wrap items-center gap-2.5">
+              <div className="text-[11px] font-black uppercase tracking-[0.18em] text-[#f1c56b]">
+                {slateDateLabel(slate.date)} · Production Run #{slate.runNumber}
+              </div>
+              <span
+                className={`inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[9px] font-black uppercase tracking-wide ${
+                  slate.dataSource === "live"
+                    ? "bg-[#37c979]/15 text-[#8fe6b6]"
+                    : "bg-gold/15 text-gold"
+                }`}
+              >
+                <span
+                  className={`h-1.5 w-1.5 rounded-full ${slate.dataSource === "live" ? "bg-[#37c979]" : "bg-gold"}`}
+                />
+                {slate.dataSource === "live" ? "Live MLB data" : "Demonstration data"}
+              </span>
             </div>
             <h1 className="mt-2 max-w-[900px] font-serif text-[clamp(34px,4.6vw,58px)] font-normal leading-[0.98] tracking-[-0.04em]">
               One platform for forecasting, simulation, decisions, and research.

@@ -337,6 +337,7 @@ const htb = (playerId: string, line: number, american: number): MarketQuote => (
 
 export const SLATE: Slate = {
   date: "2026-07-18",
+  source: "synthetic",
   games: [
     {
       id: "bos-nyy",
@@ -673,6 +674,21 @@ export function hitter(id: string): Hitter {
   const h = HITTERS[id];
   if (!h) throw new Error(`Unknown hitter: ${id}`);
   return h;
+}
+
+/**
+ * Register a dynamically-sourced pitcher (e.g. from the live MLB feed) into the
+ * runtime registry so the engines can look it up by id. Idempotent.
+ */
+export function registerPitcher(p: Pitcher): void {
+  PITCHERS[p.id] = p;
+}
+export function hasPitcher(id: string): boolean {
+  return id in PITCHERS;
+}
+/** Curated star hitters, grouped by team code, for prop coverage on live games. */
+export function hittersForTeam(teamCode: string): Hitter[] {
+  return Object.values(HITTERS).filter((h) => h.teamCode === teamCode);
 }
 export function gameById(id: string): Game | undefined {
   return SLATE.games.find((g) => g.id === id);

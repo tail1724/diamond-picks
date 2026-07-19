@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
-import { runSlate, type ComputedSlate } from "../engines/pipeline";
-import { hashSeed } from "../engines/rng";
+import { type ComputedSlate } from "../engines/pipeline";
+import { runProduction } from "./production";
 import { supabase } from "./supabase";
 
 /**
@@ -84,7 +84,7 @@ async function persist(slate: ComputedSlate): Promise<void> {
 export const regenerateRunFn = createServerFn({ method: "POST" })
   .validator((d: { runNumber: number }) => d)
   .handler(async ({ data }): Promise<ComputedSlate> => {
-    const slate = runSlate({ runNumber: data.runNumber, seed: hashSeed("run", data.runNumber) });
+    const slate = await runProduction(data.runNumber);
     try {
       await persist(slate);
     } catch {

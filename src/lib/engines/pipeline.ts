@@ -1,5 +1,5 @@
 import type { Game, MarketQuote, RunLineage, Slate } from "../domain/types";
-import { SLATE } from "../domain/slate";
+import { SLATE, pitcher } from "../domain/slate";
 import { forecastGame, type GameForecast } from "./forecast";
 import { calibrateMarkets } from "./market";
 import { hashSeed } from "./rng";
@@ -48,6 +48,7 @@ export interface ComputedSlate {
   runNumber: number;
   seed: number;
   lineage: RunLineage;
+  dataSource: "live" | "synthetic";
   games: GameRun[];
   recommendations: MarketDecision[];
   monitored: MarketDecision[];
@@ -165,8 +166,18 @@ export function runSlate(opts: RunOptions = {}): ComputedSlate {
   const t0 = Date.now();
   const games: GameRun[] = slate.games.map((rawGame) => {
     const forecast = forecastGame(rawGame);
-    // Replace authored prices with synthesized efficient-book prices.
-    const game: Game = { ...rawGame, markets: calibrateMarkets(rawGame, forecast) };
+    // Embed pitcher display fields so client render needs no runtime registry,
+    // then replace authored prices with synthesized efficient-book prices.
+    const awaySp = pitcher(rawGame.awayPitcherId);
+    const homeSp = pitcher(rawGame.homePitcherId);
+    const game: Game = {
+      ...rawGame,
+      awayPitcherName: rawGame.awayPitcherName ?? awaySp.name,
+      homePitcherName: rawGame.homePitcherName ?? homeSp.name,
+      awayPitcherHand: rawGame.awayPitcherHand ?? awaySp.hand,
+      homePitcherHand: rawGame.homePitcherHand ?? homeSp.hand,
+      markets: calibrateMarkets(rawGame, forecast),
+    };
     const legs = legsForGame(game);
     const sim = simulateGame(game, forecast, legs, simParlays[game.id] ?? [], {
       sims,
@@ -236,7 +247,8 @@ export function runSlate(opts: RunOptions = {}): ComputedSlate {
     date: slate.date,
     runNumber,
     seed,
-    lineage: BASE_LINEAGE,
+    lineage: { ...BASE_LINEAGE, datasetSnapshot: `${slate.date}.1` },
+    dataSource: slate.source ?? "synthetic",
     games,
     recommendations,
     monitored,

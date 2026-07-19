@@ -6,7 +6,8 @@ import { formatAmerican, pct, signed, signedPct } from "@/lib/tail/format";
 import { expectedValue, impliedProb, parlayAmerican, toAmerican } from "@/lib/engines/odds";
 import { simulateGame, type SimLeg } from "@/lib/engines/simulation";
 import { legIdForQuote } from "@/lib/engines/decision";
-import type { MarketKind, Side } from "@/lib/domain/types";
+import { hitter } from "@/lib/domain/slate";
+import type { MarketQuote } from "@/lib/domain/types";
 import type { PricedParlay } from "@/lib/engines/parlay";
 import { Btn, Explanation, Grade, Panel, PanelHead, Pill, SectionHead } from "@/components/tail/ui";
 
@@ -83,40 +84,45 @@ function ParlayCard({ p }: { p: PricedParlay }) {
   );
 }
 
+function hitterName(id?: string): string {
+  if (!id) return "Hitter";
+  try {
+    return hitter(id).name;
+  } catch {
+    return id;
+  }
+}
+
 /** Live builder: re-simulates the parlay on every leg toggle (PRD PAR-001). */
 function CustomBuilder() {
   const { slate } = useSlate();
-  const run = slate.games.find((g) => g.game.id === "bos-nyy") ?? slate.games[0];
+  const run = slate.games.find((g) => g.game.featuredHitterIds.length > 0) ?? slate.games[0];
   const options = useMemo(() => {
-    const wanted = [
-      { legId: "moneyline:home::", label: `${run.game.homeCode} Moneyline` },
-      { legId: "pitcher_k:over:5.5:fried", label: "Fried Over 5.5 K" },
-      { legId: "hitter_tb:over:1.5:judge", label: "Judge 2+ Total Bases" },
-      { legId: "total:over:8:", label: "Game Over 8.0" },
-    ];
-    return wanted
-      .map((w) => {
-        const q = run.game.markets.find((m) => legIdForQuote(m) === w.legId);
-        return q
-          ? {
-              ...w,
-              kind: q.kind,
-              side: q.side,
-              line: q.line,
-              playerId: q.playerId,
-              american: q.american,
-            }
-          : null;
-      })
-      .filter(Boolean) as Array<{
-      legId: string;
-      label: string;
-      kind: MarketKind;
-      side: Side;
-      line?: number;
-      playerId?: string;
-      american: number;
-    }>;
+    const g = run.game;
+    const picks: Array<{ q: MarketQuote; label: string }> = [];
+    const mlHome = g.markets.find((m) => m.kind === "moneyline" && m.side === "home");
+    if (mlHome) picks.push({ q: mlHome, label: `${g.homeCode} Moneyline` });
+    const kHome = g.markets.find(
+      (m) => m.kind === "pitcher_k" && m.side === "over" && m.playerId === g.homePitcherId,
+    );
+    if (kHome) picks.push({ q: kHome, label: `${g.homePitcherName} Over ${kHome.line} K` });
+    const kAway = g.markets.find(
+      (m) => m.kind === "pitcher_k" && m.side === "over" && m.playerId === g.awayPitcherId,
+    );
+    if (kAway) picks.push({ q: kAway, label: `${g.awayPitcherName} Over ${kAway.line} K` });
+    const tb = g.markets.find((m) => m.kind === "hitter_tb");
+    if (tb) picks.push({ q: tb, label: `${hitterName(tb.playerId)} 2+ Total Bases` });
+    const over = g.markets.find((m) => m.kind === "total" && m.side === "over");
+    if (over) picks.push({ q: over, label: `Game Over ${over.line}` });
+    return picks.map((p) => ({
+      legId: legIdForQuote(p.q),
+      label: p.label,
+      kind: p.q.kind,
+      side: p.q.side,
+      line: p.q.line,
+      playerId: p.q.playerId,
+      american: p.q.american,
+    }));
   }, [run]);
 
   const [selected, setSelected] = useState<Record<string, boolean>>(() =>

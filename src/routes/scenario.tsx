@@ -7,6 +7,8 @@ import { toAmerican } from "@/lib/engines/odds";
 import { simulateGame, type SimLeg } from "@/lib/engines/simulation";
 import { decideMarket, legIdForQuote } from "@/lib/engines/decision";
 import type { GameForecast } from "@/lib/engines/forecast";
+import { team } from "@/lib/domain/teams";
+import { hitter } from "@/lib/domain/slate";
 import { Explanation, Panel, PanelHead, SectionHead } from "@/components/tail/ui";
 
 export const Route = createFileRoute("/scenario")({ component: Scenario });
@@ -45,12 +47,14 @@ function Select({
 
 function DiffCard({
   tag,
+  code,
   winProb,
   fair,
   total,
   score,
 }: {
   tag: string;
+  code: string;
   winProb: number;
   fair: number;
   total: number;
@@ -61,7 +65,9 @@ function DiffCard({
       <div className="text-[10px] font-extrabold uppercase tracking-wide text-muted-foreground">
         {tag}
       </div>
-      <h3 className="mt-1 font-serif text-xl text-navy">NYY {pct(winProb)}</h3>
+      <h3 className="mt-1 font-serif text-xl text-navy">
+        {code} {pct(winProb)}
+      </h3>
       <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
         Fair price {formatAmerican(fair)}
         <br />
@@ -73,16 +79,32 @@ function DiffCard({
   );
 }
 
+function homeStarName(featuredHitterIds: string[], homeCode: string): string {
+  for (const id of featuredHitterIds) {
+    try {
+      const h = hitter(id);
+      if (h.teamCode === homeCode) return h.name;
+    } catch {
+      /* ignore */
+    }
+  }
+  return "Star hitter";
+}
+
 function Scenario() {
   const { slate } = useSlate();
-  const run = slate.games.find((g) => g.game.id === "bos-nyy") ?? slate.games[0];
+  const run = slate.games.find((g) => g.game.featuredHitterIds.length > 0) ?? slate.games[0];
   const baseFc = run.forecast;
+  const home = team(run.game.homeCode);
+  const away = team(run.game.awayCode);
+  const starterName = run.game.homePitcherName ?? "Listed starter";
+  const starName = homeStarName(run.game.featuredHitterIds, run.game.homeCode);
   const mlQuote = run.game.markets.find((m) => m.kind === "moneyline" && m.side === "home")!;
   const baseDec = run.decisions.find((d) => d.legId === legIdForQuote(mlQuote))!;
 
   const [wind, setWind] = useState<WindKey>("14 mph out to right");
   const [bullpen, setBullpen] = useState("Full availability");
-  const [starter, setStarter] = useState("Max Fried");
+  const [starter, setStarter] = useState(starterName);
   const [judge, setJudge] = useState("Active");
 
   const scenario = useMemo(() => {
@@ -127,7 +149,12 @@ function Scenario() {
             subtitle={`Branch SCN-2204 from production run #${slate.runNumber}.`}
           />
           <div className="grid grid-cols-2 gap-2.5 p-3.5">
-            <Select label="Game" value="BOS at NYY" onChange={() => {}} options={["BOS at NYY"]} />
+            <Select
+              label="Game"
+              value={`${away.code} at ${home.code}`}
+              onChange={() => {}}
+              options={[`${away.code} at ${home.code}`]}
+            />
             <Select
               label="Lineup certainty"
               value="Confirmed lineup"
@@ -138,7 +165,7 @@ function Scenario() {
               label="Starting pitcher"
               value={starter}
               onChange={setStarter}
-              options={["Max Fried", "Emergency starter"]}
+              options={[starterName, "Emergency starter"]}
             />
             <Select
               label="Wind"
@@ -147,13 +174,13 @@ function Scenario() {
               options={Object.keys(WIND)}
             />
             <Select
-              label="Yankees bullpen"
+              label={`${home.code} bullpen`}
               value={bullpen}
               onChange={setBullpen}
               options={["Full availability", "Closer unavailable"]}
             />
             <Select
-              label="Judge status"
+              label={`${starName} status`}
               value={judge}
               onChange={setJudge}
               options={["Active", "Removed"]}
@@ -170,14 +197,16 @@ function Scenario() {
             <div className="grid grid-cols-[1fr_auto_1fr] items-stretch gap-3">
               <DiffCard
                 tag="Production"
+                code={home.code}
                 winProb={run.sim.homeWinProb}
-                fair={run.forecast ? toAmerican(run.sim.homeWinProb) : 0}
+                fair={toAmerican(run.sim.homeWinProb)}
                 total={baseFc.fairTotal}
                 score={baseDec.score}
               />
               <div className="grid place-items-center text-2xl font-black text-brand-red">→</div>
               <DiffCard
                 tag="Scenario"
+                code={home.code}
                 winProb={scenario.winProb}
                 fair={toAmerican(scenario.winProb)}
                 total={scenario.total}

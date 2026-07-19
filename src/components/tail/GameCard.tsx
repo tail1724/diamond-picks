@@ -1,21 +1,21 @@
 import { cn } from "@/lib/utils";
 import { team } from "@/lib/domain/teams";
-import { pitcher } from "@/lib/domain/slate";
 import type { GameRun } from "@/lib/engines/pipeline";
 import { formatAmerican, pct, signedPct } from "@/lib/tail/format";
 import { Explanation, Grade } from "./ui";
 
 function TeamSide({
   code,
-  pitcherId,
+  pitcherName,
+  pitcherHand,
   side,
 }: {
   code: string;
-  pitcherId: string;
+  pitcherName?: string;
+  pitcherHand?: string;
   side: "home" | "away";
 }) {
   const t = team(code);
-  const p = pitcher(pitcherId);
   const badge = (
     <div
       className={cn(
@@ -32,7 +32,8 @@ function TeamSide({
         {t.city} {t.name}
       </div>
       <div className="mt-0.5 text-[11px] text-muted-foreground">
-        {p.name} · {p.hand}HP
+        {pitcherName ?? "TBD"}
+        {pitcherHand ? ` · ${pitcherHand}HP` : ""}
       </div>
     </div>
   );
@@ -102,9 +103,19 @@ export function GameCard({ run }: { run: GameRun }) {
       </div>
 
       <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3">
-        <TeamSide code={game.awayCode} pitcherId={game.awayPitcherId} side="away" />
+        <TeamSide
+          code={game.awayCode}
+          pitcherName={game.awayPitcherName}
+          pitcherHand={game.awayPitcherHand}
+          side="away"
+        />
         <div className="font-serif text-[12px] font-black text-muted-foreground">VS</div>
-        <TeamSide code={game.homeCode} pitcherId={game.homePitcherId} side="home" />
+        <TeamSide
+          code={game.homeCode}
+          pitcherName={game.homePitcherName}
+          pitcherHand={game.homePitcherHand}
+          side="home"
+        />
       </div>
 
       <div className="mt-3 flex items-center justify-between gap-3 rounded-[11px] border border-dashed border-line bg-card px-3 py-2">

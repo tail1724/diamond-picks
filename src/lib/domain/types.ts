@@ -102,6 +102,11 @@ export interface Game {
   homeCode: string;
   awayPitcherId: string;
   homePitcherId: string;
+  /** Resolved pitcher display fields (embedded so client render needs no registry). */
+  awayPitcherName?: string;
+  homePitcherName?: string;
+  awayPitcherHand?: Hand;
+  homePitcherHand?: Hand;
   weather: WeatherSnapshot;
   /** Data-quality score 0–1 (completeness × freshness × source quality). */
   dataQuality: number;
@@ -118,6 +123,8 @@ export interface Game {
 export interface Slate {
   date: string;
   games: Game[];
+  /** Where the slate's inputs came from. */
+  source?: "live" | "synthetic";
 }
 
 /** Lineage stamped onto every produced run (ARCH-002, reproducibility). */

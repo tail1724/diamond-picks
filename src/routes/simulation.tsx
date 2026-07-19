@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useSlate } from "@/lib/tail/context";
 import { team } from "@/lib/domain/teams";
-import { hitter, pitcher } from "@/lib/domain/slate";
+import { hitter } from "@/lib/domain/slate";
 import type { MarketQuote } from "@/lib/domain/types";
 import { pct } from "@/lib/tail/format";
 import type { SimResult } from "@/lib/engines/simulation";
@@ -42,11 +42,11 @@ function SimulationExplorer() {
       (m) => m.kind === "pitcher_k" && m.side === "over" && m.playerId === run.game.homePitcherId,
     );
     const tb = run.game.markets.find((m) => m.kind === "hitter_tb");
-    const homeSp = pitcher(run.game.homePitcherId);
+    const homeSpName = run.game.homePitcherName ?? "Home SP";
     const rows: Array<{ label: string; value: number | null }> = [];
     if (kHome)
       rows.push({
-        label: `${home.code} win + ${homeSp.name} K over`,
+        label: `${home.code} win + ${homeSpName} K over`,
         value: jointFromCorr(sim, mlHome, legId(kHome)),
       });
     if (tb)
@@ -56,7 +56,7 @@ function SimulationExplorer() {
       });
     if (under && kHome)
       rows.push({
-        label: `${homeSp.name} K over + Under ${under.line}`,
+        label: `${homeSpName} K over + Under ${under.line}`,
         value: jointFromCorr(sim, legId(kHome), legId(under)),
       });
     if (under)
