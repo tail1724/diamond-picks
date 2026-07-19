@@ -7,11 +7,10 @@ import { GameCard } from "@/components/tail/GameCard";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Top Picks — TAIL Sports" },
+      { title: "Today’s Best MLB Picks — TAIL Sports" },
       {
         name: "description",
-        content:
-          "Today's top MLB picks — the highest-confidence games from our simulation and Decision Engine.",
+        content: "The MLB picks we like most today, explained in plain English.",
       },
     ],
   }),
@@ -42,27 +41,27 @@ function TopPicks() {
             {slateDateLabel(slate.date)}
           </div>
           <h1 className="mt-1 font-serif text-[clamp(30px,4vw,44px)] leading-tight text-navy">
-            Top Picks Today
+            The Picks We Like Today
           </h1>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            The highest-confidence games from today's slate — filtered through our Decision Engine.
+            We ran the numbers on every game. These are the spots where the matchup and the price both make sense.
           </p>
         </div>
         <Link
           to="/games"
           className="inline-flex items-center rounded-xl border border-line bg-card px-3.5 py-2.5 text-sm font-extrabold text-navy transition hover:-translate-y-px"
         >
-          See all games →
+          Check every game →
         </Link>
       </section>
 
       {picks.length === 0 ? (
         <div className="rounded-[16px] border border-dashed border-line bg-card p-8 text-center text-sm text-muted-foreground">
-          No qualifying top picks today. Check{" "}
+          Nothing is strong enough for a top pick right now. You can still check the{" "}
           <Link to="/games" className="font-bold text-navy underline">
-            all games
+            full schedule
           </Link>{" "}
-          for the full slate.
+          to see what is close.
         </div>
       ) : (
         <div className="grid gap-3">
