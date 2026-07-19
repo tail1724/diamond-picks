@@ -1,4 +1,4 @@
-import type { Game, MarketQuote, Slate } from "../domain/types";
+import type { BookmakerOffer, Game, LiveDataStatus, MarketQuote, Slate } from "../domain/types";
 import { PITCHERS, SLATE } from "../domain/slate";
 
 const MLB_STATS_BASE = "https://statsapi.mlb.com/api";
@@ -48,14 +48,6 @@ export interface SavantGameFeed {
   team_away?: Array<Record<string, unknown>>;
   exit_velocity?: Array<Record<string, unknown>>;
   boxscore?: Record<string, unknown>;
-}
-
-export interface LiveDataStatus {
-  schedule: "live" | "fallback";
-  odds: "live" | "unconfigured" | "unavailable";
-  liveFeedGames: number;
-  savantGames: number;
-  fetchedAt: string;
 }
 
 export interface ProductionSlateResult {
@@ -147,17 +139,18 @@ function gameKey(away: string, home: string): string {
   return `${normalizeName(away)}:${normalizeName(home)}`;
 }
 
-function averageAmerican(values: number[]): number {
-  return values.length ? Math.round(values.reduce((sum, value) => sum + value, 0) / values.length) : -110;
+function betterAmerican(a: number, b: number): number {
+  return a > b ? a : b;
 }
 
-function consensusMarkets(event: OddsEvent | undefined): MarketQuote[] {
+function sportsbookMarkets(event: OddsEvent | undefined): MarketQuote[] {
   if (!event?.bookmakers?.length) return [];
-  const buckets = new Map<string, { quote: Omit<MarketQuote, "american">; prices: number[] }>();
+  const buckets = new Map<string, { quote: Omit<MarketQuote, "american" | "offers">; offers: BookmakerOffer[] }>();
+
   for (const book of event.bookmakers) {
     for (const market of book.markets) {
       for (const outcome of market.outcomes) {
-        let quote: Omit<MarketQuote, "american"> | undefined;
+        let quote: Omit<MarketQuote, "american" | "offers"> | undefined;
         if (market.key === "h2h") {
           quote = { kind: "moneyline", side: normalizeName(outcome.name) === normalizeName(event.home_team) ? "home" : "away" };
         } else if (market.key === "totals" && outcome.point != null) {
@@ -171,13 +164,23 @@ function consensusMarkets(event: OddsEvent | undefined): MarketQuote[] {
         }
         if (!quote) continue;
         const key = `${quote.kind}:${quote.side}:${quote.line ?? ""}`;
-        const existing = buckets.get(key) ?? { quote, prices: [] };
-        existing.prices.push(outcome.price);
+        const existing = buckets.get(key) ?? { quote, offers: [] };
+        existing.offers.push({ key: book.key, title: book.title, american: outcome.price, lastUpdate: book.last_update });
         buckets.set(key, existing);
       }
     }
   }
-  return [...buckets.values()].map(({ quote, prices }) => ({ ...quote, american: averageAmerican(prices) }));
+
+  return [...buckets.values()].map(({ quote, offers }) => {
+    const best = offers.reduce((current, offer) => betterAmerican(offer.american, current.american) === offer.american ? offer : current);
+    return {
+      ...quote,
+      american: best.american,
+      bookmaker: best.title,
+      lastUpdate: best.lastUpdate,
+      offers: [...offers].sort((a, b) => b.american - a.american),
+    };
+  });
 }
 
 function fallbackMarkets(): MarketQuote[] {
@@ -190,11 +193,7 @@ function fallbackMarkets(): MarketQuote[] {
 }
 
 async function fetchSchedule(date: string): Promise<MlbScheduledGame[]> {
-  const params = new URLSearchParams({
-    sportId: "1",
-    date,
-    hydrate: "team,venue,probablePitcher(note,pitchHand)",
-  });
+  const params = new URLSearchParams({ sportId: "1", date, hydrate: "team,venue,probablePitcher(note,pitchHand)" });
   const response = await fetchJson<MlbScheduleResponse>(`${MLB_STATS_BASE}/v1/schedule/games/?${params.toString()}`);
   return response.dates?.flatMap((entry) => entry.games ?? []) ?? [];
 }
@@ -229,10 +228,7 @@ async function enrichStartedGames(games: MlbScheduledGame[]): Promise<{ liveFeed
   let liveFeedGames = 0;
   let savantGames = 0;
   await Promise.all(started.map(async (game) => {
-    const [live, savant] = await Promise.allSettled([
-      fetchGameLiveFeed(game.gamePk),
-      fetchSavantGameFeed(game.gamePk),
-    ]);
+    const [live, savant] = await Promise.allSettled([fetchGameLiveFeed(game.gamePk), fetchSavantGameFeed(game.gamePk)]);
     if (live.status === "fulfilled") liveFeedGames += 1;
     if (savant.status === "fulfilled") savantGames += 1;
   }));
@@ -247,26 +243,14 @@ export async function loadProductionSlate(date = easternDate()): Promise<Product
   } catch {
     return {
       slate: SLATE,
-      status: {
-        schedule: "fallback",
-        odds: process.env.THE_ODDS_API_KEY ? "unavailable" : "unconfigured",
-        liveFeedGames: 0,
-        savantGames: 0,
-        fetchedAt,
-      },
+      status: { schedule: "fallback", odds: process.env.THE_ODDS_API_KEY ? "unavailable" : "unconfigured", liveFeedGames: 0, savantGames: 0, fetchedAt },
     };
   }
 
   if (!schedule.length) {
     return {
       slate: { date, games: [] },
-      status: {
-        schedule: "live",
-        odds: process.env.THE_ODDS_API_KEY ? "unavailable" : "unconfigured",
-        liveFeedGames: 0,
-        savantGames: 0,
-        fetchedAt,
-      },
+      status: { schedule: "live", odds: process.env.THE_ODDS_API_KEY ? "unavailable" : "unconfigured", liveFeedGames: 0, savantGames: 0, fetchedAt },
     };
   }
 
@@ -288,7 +272,7 @@ export async function loadProductionSlate(date = easternDate()): Promise<Product
     const awayPitcherId = registerPitcher(raw.teams.away.probablePitcher, `${awayCode}-starter`);
     const homePitcherId = registerPitcher(raw.teams.home.probablePitcher, `${homeCode}-starter`);
     const event = oddsByGame.get(gameKey(raw.teams.away.team.name, raw.teams.home.team.name));
-    const markets = consensusMarkets(event);
+    const markets = sportsbookMarkets(event);
     const hasSportsbookMarkets = markets.length > 0;
 
     return {
@@ -300,9 +284,9 @@ export async function loadProductionSlate(date = easternDate()): Promise<Product
       awayPitcherId,
       homePitcherId,
       weather: { tempF: 72, windMph: 0, windDir: "weather feed pending", roof: "none", runFactor: 1 },
-      dataQuality: hasSportsbookMarkets ? 0.92 : 0.78,
+      dataQuality: hasSportsbookMarkets ? 0.92 : 0.72,
       lineupCertainty: raw.status?.abstractGameState === "Preview" ? 0.72 : 0.98,
-      marketStability: hasSportsbookMarkets ? 0.88 : 0.5,
+      marketStability: hasSportsbookMarkets ? 0.88 : 0.35,
       marketSource: hasSportsbookMarkets ? "sportsbook" : "fallback",
       markets: hasSportsbookMarkets ? markets : fallbackMarkets(),
       featuredHitterIds: [],
@@ -310,8 +294,5 @@ export async function loadProductionSlate(date = easternDate()): Promise<Product
   });
 
   const enrichment = await enrichStartedGames(schedule);
-  return {
-    slate: { date, games },
-    status: { schedule: "live", odds: oddsStatus, ...enrichment, fetchedAt },
-  };
+  return { slate: { date, games }, status: { schedule: "live", odds: oddsStatus, ...enrichment, fetchedAt } };
 }
