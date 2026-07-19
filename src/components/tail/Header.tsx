@@ -1,8 +1,14 @@
 import { Link } from "@tanstack/react-router";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSlate } from "@/lib/tail/context";
-import { navItems } from "@/lib/tail/format";
+import { navItems, advancedNavItems } from "@/lib/tail/format";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export const shell = "mx-auto w-[min(1520px,calc(100%-28px))]";
 
@@ -45,6 +51,18 @@ export function Header() {
               {item.label}
             </Link>
           ))}
+          <DropdownMenu>
+            <DropdownMenuTrigger className="inline-flex items-center gap-1 whitespace-nowrap rounded-[10px] px-2.5 py-2.5 text-xs font-extrabold text-white/70 transition hover:bg-white/10 hover:text-white">
+              Advanced <ChevronDown className="h-3.5 w-3.5" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-56">
+              {advancedNavItems.map((item) => (
+                <DropdownMenuItem key={item.to} asChild>
+                  <Link to={item.to}>{item.label}</Link>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </nav>
 
         <div className="ml-auto flex min-w-max items-center gap-2.5">
