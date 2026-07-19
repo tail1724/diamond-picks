@@ -2,14 +2,10 @@ import { createServerFn } from "@tanstack/react-start";
 import { runSlate, type ComputedSlate } from "../engines/pipeline";
 import { hashSeed } from "../engines/rng";
 import { loadProductionSlate } from "../data/live-mlb";
+import type { AppSlate } from "./run";
 import { supabase } from "./supabase";
 
-/**
- * Persistence + versioning (PRD §5.2, FR-002). Each manual regeneration reloads
- * the current production MLB slate, runs the pipeline, and writes a new immutable
- * forecast-run version. Persistence remains best-effort so a database outage does
- * not prevent a fresh forecast from being returned.
- */
+/** Persist immutable forecast versions without blocking the user-facing refresh. */
 async function persist(slate: ComputedSlate): Promise<void> {
   const { data, error } = await supabase
     .from("forecast_runs")
@@ -75,15 +71,15 @@ async function persist(slate: ComputedSlate): Promise<void> {
     supabase.from("audit_events").insert({
       actor: "admin",
       action: "forecast_run.completed",
-      detail: `Run #${slate.runNumber} published from live MLB data (${slate.stats.recommendations} recommendations, ${slate.stats.qualifiedParlays} parlays).`,
+      detail: `Run #${slate.runNumber} published (${slate.stats.recommendations} recommendations).`,
     }),
   ]);
 }
 
 export const regenerateRunFn = createServerFn({ method: "POST" })
   .validator((d: { runNumber: number; date?: string }) => d)
-  .handler(async ({ data }): Promise<ComputedSlate> => {
-    const { slate: sourceSlate } = await loadProductionSlate(data.date);
+  .handler(async ({ data }): Promise<AppSlate> => {
+    const { slate: sourceSlate, status } = await loadProductionSlate(data.date);
     const slate = runSlate({
       slate: sourceSlate,
       runNumber: data.runNumber,
@@ -92,9 +88,9 @@ export const regenerateRunFn = createServerFn({ method: "POST" })
     try {
       await persist(slate);
     } catch {
-      // Persistence is best-effort; the live forecast still returns.
+      // A database outage must not prevent a fresh forecast from reaching users.
     }
-    return slate;
+    return { ...slate, dataStatus: status };
   });
 
 export interface RunHistoryRow {
